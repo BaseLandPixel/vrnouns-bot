@@ -1,0 +1,12 @@
+{
+  "type": "module",
+  "name": "vrnouns-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "ethers": "^6.15.0",
+    "node-cron": "^4.2.1",
+    "node-fetch": "^3.3.2"
+  }
+}
