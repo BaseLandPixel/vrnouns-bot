@@ -56,12 +56,19 @@ let dailySigners = new Set();
 contract.on("Staked", async (user, tokenId, epochStart) => {
   dailySigners.add(user.toLowerCase());
   console.log(`🟢 ${user} signed #${tokenId}`);
-  const msg = `✅ ${user} just signed #${tokenId} ⚡ Base Mainnet`;
+  const msg = `
+✅ ${user} just signed #${tokenId}
+⚡ Base Mainnet  
+👉 [Open Mini App](https://farcaster.xyz/miniapps/pIFtRBsgnWAF/flooorfun)
+  `.trim();
   await sendToFarcaster(msg, "sign");
 });
 
 contract.on("Transfer", async (from, to, tokenId) => {
-  const msg = `💸 VRNouns #${tokenId} transferred to ${to} ⚡ Base Mainnet`;
+  const msg = `
+💸 VRNouns #${tokenId} transferred to ${to}
+⚡ Base Mainnet
+  `.trim();
   console.log(msg);
   await sendToFarcaster(msg, "sale");
 });
@@ -72,7 +79,8 @@ async function sendDailyReport() {
   const msg = `
 📊 Daily VRNouns Report
 👥 ${count} signers today
-⚡ Base Mainnet
+⚡ Base Mainnet  
+👉 [Open Mini App](https://farcaster.xyz/miniapps/pIFtRBsgnWAF/flooorfun)
   `.trim();
   await sendToFarcaster(msg, "sign");
   dailySigners.clear();
