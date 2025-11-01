@@ -98,11 +98,9 @@ function scheduleDailyReport() {
 
 scheduleDailyReport();
 
-/* ---------------- KEEP-ALIVE (Render Uyumaz) ---------------- */
-const SELF_URL = "https://vrnouns-bot.onrender.com";
-
+/* ---------------- KEEP RENDER ALIVE ---------------- */
 setInterval(() => {
-  fetch(SELF_URL)
+  fetch("https://vrnouns-bot.onrender.com")
     .then(() => console.log("⏱️ Self-ping sent to keep Render awake"))
-    .catch(() => console.log("⚠️ Self-ping failed (Render may sleep)"));
-}, 5 * 60 * 1000);
+    .catch(() => console.warn("⚠️ Self-ping failed (ignored)"));
+}, 9 * 60 * 1000);
