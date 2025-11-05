@@ -5,17 +5,27 @@ import fetch from "node-fetch";
 
 dotenv.config();
 
-const RPC_URL = process.env.BASE_RPC_HTTPS;
+const RPC_HTTPS_URL = process.env.BASE_RPC_HTTPS;
+const RPC_WSS_URL = process.env.BASE_RPC_WSS;
 const SIGN_CONTRACT = process.env.SIGN_CONTRACT;
+const VRNOUNS_CONTRACT = process.env.VRNOUNS_CONTRACT;
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
 const SIGNER_UUID = process.env.SIGNER_UUID;
 
+// Sözleşme arayüzü (Transfer ve Staked için)
 const abi = JSON.parse(fs.readFileSync("./abi.json", "utf-8"));
-const provider = new ethers.JsonRpcProvider(RPC_URL);
-const contract = new ethers.Contract(SIGN_CONTRACT, abi, provider);
 
-console.log("🌐 WebSocket bağlantısı deneniyor...");
-console.log("🟢 VRNouns Listener aktif (Base Mainnet)");
+// WebSocket varsa kullan; yoksa HTTP ile devam et
+const provider = RPC_WSS_URL
+  ? new ethers.WebSocketProvider(RPC_WSS_URL)
+  : new ethers.JsonRpcProvider(RPC_HTTPS_URL);
+
+// Staked ve Transfer olaylarını dinlemek için iki ayrı sözleşme örneği
+const stakeContract = new ethers.Contract(SIGN_CONTRACT, abi, provider);
+const vrnounsContract = new ethers.Contract(VRNOUNS_CONTRACT, abi, provider);
+
+console.log("🌐 RPC bağlantısı deneniyor...");
+console.log("🟢 VRNouns listener aktif (Base Mainnet)");
 
 /* ---------------- CAST GÖNDERİMİ ---------------- */
 async function sendToFarcaster(text, type = "sign") {
@@ -30,7 +40,7 @@ async function sendToFarcaster(text, type = "sign") {
     const res = await fetch("https://api.neynar.com/v2/farcaster/cast", {
       method: "POST",
       headers: {
-        "api_key": NEYNAR_API_KEY,
+        api_key: NEYNAR_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -53,14 +63,16 @@ async function sendToFarcaster(text, type = "sign") {
 /* ---------------- EVENT DİNLERİ ---------------- */
 let dailySigners = new Set();
 
-contract.on("Staked", async (user, tokenId, epochStart) => {
+// Staked olaylarını imza olarak dinle ve paylaş
+stakeContract.on("Staked", async (user, tokenId, epochStart) => {
   dailySigners.add(user.toLowerCase());
   console.log(`🟢 ${user} signed #${tokenId}`);
   const msg = `✅ ${user} just signed #${tokenId} ⚡ Base Mainnet`;
   await sendToFarcaster(msg, "sign");
 });
 
-contract.on("Transfer", async (from, to, tokenId) => {
+// Transfer olaylarını satış olarak dinle ve paylaş
+vrnounsContract.on("Transfer", async (from, to, tokenId) => {
   const msg = `💸 VRNouns #${tokenId} transferred to ${to} ⚡ Base Mainnet`;
   console.log(msg);
   await sendToFarcaster(msg, "sale");
@@ -82,7 +94,8 @@ async function sendDailyReport() {
 function scheduleDailyReport() {
   const now = new Date();
   const nextRun = new Date();
-  nextRun.setUTCHours(0, 0, 30, 0); // 00:00 UTC → 03:00 Türkiye
+  // Türkiye saati ile 03:00 (UTC 00:00 + 3 saat)
+  nextRun.setUTCHours(0, 0, 30, 0);
   if (now > nextRun) nextRun.setUTCDate(nextRun.getUTCDate() + 1);
   const delay = nextRun - now;
 
