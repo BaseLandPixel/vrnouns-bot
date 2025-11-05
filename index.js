@@ -2,17 +2,14 @@ import dotenv from "dotenv";
 import { ethers } from "ethers";
 import fs from "fs";
 import fetch from "node-fetch";
-import express from "express";
 
 dotenv.config();
 
-// ---- ENV ----
 const RPC_URL = process.env.BASE_RPC_HTTPS;
 const SIGN_CONTRACT = process.env.SIGN_CONTRACT;
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
 const SIGNER_UUID = process.env.SIGNER_UUID;
 
-// ---- CONTRACT ----
 const abi = JSON.parse(fs.readFileSync("./abi.json", "utf-8"));
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const contract = new ethers.Contract(SIGN_CONTRACT, abi, provider);
@@ -20,7 +17,7 @@ const contract = new ethers.Contract(SIGN_CONTRACT, abi, provider);
 console.log("🌐 WebSocket bağlantısı deneniyor...");
 console.log("🟢 VRNouns Listener aktif (Base Mainnet)");
 
-// ---- CAST GÖNDERİMİ ----
+/* ---------------- CAST GÖNDERİMİ ---------------- */
 async function sendToFarcaster(text, type = "sign") {
   try {
     let imageUrl = "";
@@ -30,21 +27,17 @@ async function sendToFarcaster(text, type = "sign") {
       imageUrl = "https://baseland.life/vrnouns_sale.jpg";
     }
 
-    // Mini app linki (senin isteğinle eklendi)
-    const miniAppUrl = "https://farcaster.xyz/miniapps/pIFtRBsgnWAF/flooorfun";
-    const body = {
-      text: `${text}\n\n🎮 ${miniAppUrl}`,
-      signer_uuid: SIGNER_UUID,
-      embeds: [{ url: imageUrl }],
-    };
-
     const res = await fetch("https://api.neynar.com/v2/farcaster/cast", {
       method: "POST",
       headers: {
         "api_key": NEYNAR_API_KEY,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        text,
+        signer_uuid: SIGNER_UUID,
+        embeds: [{ url: imageUrl }],
+      }),
     });
 
     if (!res.ok) {
@@ -57,7 +50,7 @@ async function sendToFarcaster(text, type = "sign") {
   }
 }
 
-// ---- EVENTLER ----
+/* ---------------- EVENT DİNLERİ ---------------- */
 let dailySigners = new Set();
 
 contract.on("Staked", async (user, tokenId, epochStart) => {
@@ -73,7 +66,7 @@ contract.on("Transfer", async (from, to, tokenId) => {
   await sendToFarcaster(msg, "sale");
 });
 
-// ---- GÜNLÜK RAPOR ----
+/* ---------------- GÜNLÜK RAPOR ---------------- */
 async function sendDailyReport() {
   const count = dailySigners.size;
   const msg = `
@@ -105,13 +98,11 @@ function scheduleDailyReport() {
 
 scheduleDailyReport();
 
-// ---- EXPRESS FALLBACK (Free Plan Keep-Alive) ----
-const app = express();
-app.get("/", (_, res) => {
-  res.send("🟢 VRNouns Bot çalışıyor (Express fallback aktif)");
-});
+/* ---------------- KEEP-ALIVE (Render Uyumaz) ---------------- */
+const SELF_URL = "https://vrnouns-bot.onrender.com";
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🌍 Express keep-alive aktif, port: ${PORT}`);
-});
+setInterval(() => {
+  fetch(SELF_URL)
+    .then(() => console.log("⏱️ Self-ping sent to keep Render awake"))
+    .catch(() => console.log("⚠️ Self-ping failed (Render may sleep)"));
+}, 5 * 60 * 1000); // her 5 dakikada bir
