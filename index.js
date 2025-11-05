@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import { ethers } from "ethers";
 import fs from "fs";
 import fetch from "node-fetch";
+import express from "express";  // YENİ: Render için basit HTTP sunucusu
 
 dotenv.config();
 
@@ -119,3 +120,13 @@ setInterval(() => {
     .then(() => console.log("⏱️ Self-ping sent to keep Render awake"))
     .catch(() => console.log("⚠️ Self-ping failed (Render may sleep)"));
 }, 5 * 60 * 1000); // her 5 dakikada bir
+
+// YENİ: Render’ın ücretsiz planında port taramasını geçmek için HTTP sunucusu
+const app = express();
+const PORT = process.env.PORT || 3000;
+app.get("/", (req, res) => {
+  res.send("VRNouns bot is running!");
+});
+app.listen(PORT, () => {
+  console.log(`HTTP server listening on ${PORT}`);
+});
