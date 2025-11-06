@@ -7,6 +7,7 @@ dotenv.config();
 
 const RPC_URL = process.env.BASE_RPC_HTTPS;
 const VRNOUNS_CONTRACT = process.env.VRNOUNS_CONTRACT;
+const SIGN_CONTRACT = process.env.SIGN_CONTRACT;
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
 const SIGNER_UUID = process.env.SIGNER_UUID;
 
@@ -14,23 +15,24 @@ const SIGNER_UUID = process.env.SIGNER_UUID;
 const abi = JSON.parse(fs.readFileSync("./abi.json", "utf-8"));
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 
-// VRNouns contract örneği
+// VRNouns ve Staking sözleşmeleri
 const vrnouns = new ethers.Contract(VRNOUNS_CONTRACT, abi, provider);
+const stakeContract = new ethers.Contract(SIGN_CONTRACT, abi, provider);
+
 console.log("🧱 VRNouns Staked Listener aktif (Base Mainnet)");
 
-// Mini-app linki (her cast’e eklenmeli)
+// Mini-app linki
 const MINIAPP_URL = "https://farcaster.xyz/miniapps/pIFtRBsgnWAF/flooorfun";
 
 /**
  * Farcaster’a cast göndermek için helper fonksiyon.
- * Sadece metin gönderiyor; embed istemiyorsanız yeterli.
  */
 async function sendToFarcaster(text) {
   try {
     const res = await fetch("https://api.neynar.com/v2/farcaster/cast", {
       method: "POST",
       headers: {
-        api_key: NEYNAR_API_KEY,
+        "x-api-key": NEYNAR_API_KEY,  // başlık düzeltildi
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -49,7 +51,7 @@ async function sendToFarcaster(text) {
 }
 
 // === STAKED Event Dinleyici ===
-vrnouns.on("Staked", async (user, tokenId, epochStart, event) => {
+stakeContract.on("Staked", async (user, tokenId, epochStart, event) => {
   try {
     const tx = await event.getTransactionReceipt();
     const block = await provider.getBlock(tx.blockNumber);
@@ -83,21 +85,25 @@ async function getSignersLeaderboard() {
   for (let start = fromBlock; start < latestBlock; start += step) {
     const end = Math.min(start + step, latestBlock);
     try {
-      const events = await vrnouns.queryFilter("Staked", start, end);
+      // Staked olayları stake kontratından sorgulanıyor
+      const events = await stakeContract.queryFilter("Staked", start, end);
       for (const e of events) {
         const addr = e.args.user.toLowerCase();
         signers[addr] = (signers[addr] || 0) + 1;
       }
     } catch (err) {
-      console.warn(`⚠️ Skip aralık ${start}-${end}: ${err.shortMessage || err.message}`);
+      console.warn(
+        `⚠️ Skip aralık ${start}-${end}: ${err.shortMessage || err.message}`
+      );
     }
   }
 
   const leaderboard = Object.entries(signers)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
-    .map(([addr, count], i) =>
-      `${i + 1}. ${addr.slice(0, 6)}...${addr.slice(-4)} — ${count} stake(s)`
+    .map(
+      ([addr, count], i) =>
+        `${i + 1}. ${addr.slice(0, 6)}...${addr.slice(-4)} — ${count} stake(s)`
     );
 
   console.log("\n🏆 VRNouns Top Stakers:\n" + leaderboard.join("\n"));
