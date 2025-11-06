@@ -41,13 +41,13 @@ async function sendToFarcaster(text, type = "sign") {
     const res = await fetch("https://api.neynar.com/v2/farcaster/cast", {
       method: "POST",
       headers: {
-        api_key: NEYNAR_API_KEY,
+        "x-api-key": NEYNAR_API_KEY,  // başlık düzeltildi
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         text,
         signer_uuid: SIGNER_UUID,
-        embeds: [{ url: imageUrl }],
+        embeds: imageUrl ? [{ url: imageUrl }] : [],
       }),
     });
 
@@ -121,7 +121,7 @@ setInterval(() => {
     .catch(() => console.log("⚠️ Self-ping failed (Render may sleep)"));
 }, 5 * 60 * 1000); // her 5 dakikada bir
 
-// YENİ: Render’ın ücretsiz planında port taramasını geçmek için yerleşik HTTP sunucusu
+// Render’ın ücretsiz planında port taramasını geçmek için yerleşik HTTP sunucusu
 const PORT = process.env.PORT || 3000;
 const server = http.createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
